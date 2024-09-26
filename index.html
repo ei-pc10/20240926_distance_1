@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Location-based AR.js demo</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js'></script>
+</head>
+<body style="margin: 0; overflow: hidden;">
+    <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-entity 
+            id="model"
+            gltf-model="https://raw.githubusercontent.com/ei-pc10/hitomania_3d/main/model.glb" 
+            gps-entity-place="latitude: 37.95623964531757; longitude: 139.3371717973987;" 
+            position="0 5 0" 
+            scale="1 1 1"
+            visible="false" <!-- 最初は非表示にする -->
+        >
+        </a-entity>
+
+        <script>
+            // 2地点間の距離を計算する関数（ハーバサインの公式）
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371e3; // 地球の半径 (メートル)
+                const φ1 = lat1 * Math.PI / 180;
+                const φ2 = lat2 * Math.PI / 180;
+                const Δφ = (lat2 - lat1) * Math.PI / 180;
+                const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+                const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                          Math.cos(φ1) * Math.cos(φ2) *
+                          Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                const distance = R * c; // 距離 (メートル)
+                return distance;
+            }
+
+            document.querySelector('a-scene').addEventListener('loaded', () => {
+                const model = document.getElementById('model');
+                const targetLat = 37.95623964531757;
+                const targetLon = 139.3371717973987;
+                
+                // ユーザーの位置情報が更新された時に処理を実行
+                window.addEventListener('gps-camera-update-position', e => {
+                    const userLat = e.detail.position.coords.latitude;
+                    const userLon = e.detail.position.coords.longitude;
+
+                    // 2地点間の距離を計算
+                    const distance = calculateDistance(userLat, userLon, targetLat, targetLon);
+
+                    // 1km以内ならモデルを表示、そうでなければ非表示
+                    if (distance <= 1000) {
+                        model.setAttribute('visible', 'true');
+                    } else {
+                        model.setAttribute('visible', 'false');
+                    }
+
+                    // スケール調整（オプション、距離に応じてサイズを変更）
+                    let scale;
+                    if (/Android/i.test(navigator.userAgent)) {
+                        scale = Math.max(0.5, Math.min(5, distance / 80));
+                    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                        scale = Math.max(0.5, Math.min(5, distance / 100));
+                    }
+                    model.setAttribute('scale', `${scale} ${scale} ${scale}`);
+                });
+            });
+        </script>
+
+        <a-camera gps-camera rotation-reader></a-camera>
+    </a-scene>
+</body>
+</html>
